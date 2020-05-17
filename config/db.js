@@ -1,5 +1,7 @@
-const moongose = require ('mongoose')
-require ('dotenv').config({ path: '.env' })
+const moongose = require('mongoose')
+require('dotenv').config({
+  path: '.env'
+})
 
 const conexionDB = async () => {
   try {
