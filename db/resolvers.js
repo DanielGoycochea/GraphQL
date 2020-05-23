@@ -1,75 +1,95 @@
 const User = require("../models/User");
 const Product = require("../models/Products");
+const Client = require("../models/Client");
 const bcryptjs = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 require("dotenv").config({
-  path: ".env"
+  path: ".env",
 });
 
 // Crear Token
 
 const createToken = (user, secret, expiresIn) => {
-  const {
-    id,
-    email,
-    name,
-    lastname
-  } = user;
+  const { id, email, name, lastname } = user;
 
-  return jwt.sign({
-    id,
-    email,
-    name,
-    lastname
-  }, secret, {
-    expiresIn
-  });
+  return jwt.sign(
+    {
+      id,
+      email,
+      name,
+      lastname,
+    },
+    secret,
+    {
+      expiresIn,
+    }
+  );
 };
 
 // Resolvers
 const resolvers = {
   Query: {
-    getUser: async (_, {
-      token
-    }) => {
-      const userID = await jwt.verify(token, process.env.TOKEN_SECRET)
+    getUser: async (_, { token }) => {
+      const userID = await jwt.verify(token, process.env.TOKEN_SECRET);
 
-      return userID
+      return userID;
     },
 
     getProducts: async () => {
       try {
-        const product = await Product.find({})
-        return product
+        const product = await Product.find({});
+        return product;
+      } catch (error) {
+        console.log(error);
+      }
+    },
+
+    getProduct: async (_, { id }) => {
+      // revisa el producto existe
+      const product = await Product.findById(id);
+      if (!product) {
+        throw new Error("Producto no encontrado");
+      }
+      return product;
+    },
+    getClients: async () => {
+      try {
+        const clients = await Client.find({})
+        return clients
+
       } catch (error) {
         console.log(error)
       }
     },
+    getClientsSalesman: async (_, {}, ctx) => {
+      try {
+        const clientsSalesman = await Client.find({salesman: ctx.user.id.toString()})
+        return clientsSalesman
 
-    getProduct: async (_, {
-      id
-    }) => {
-      // revisa el producto existe 
-      const product = await Product.findById(id)
-      if (!product) {
-        throw new Error('Producto no encontrado')
+      } catch (error) {
+        console.log(error)
       }
-      return product
-
+    },
+    getClient: async (_, {id}, ctx) => {
+      // verificar que el usuario exista
+      const client = await Client.findById(id)
+      if (!client){
+        throw new Error('Cliente no existe')
+      }
+      // quien lo creo puedo verlo
+      if (client.salesman.toString() !== ctx.user.id){
+        throw new Error("No tiene las credenciales para acceder")
+      }
+      return client
     }
   },
   Mutation: {
-    newUser: async (_, {
-      input
-    }) => {
-      const {
-        email,
-        password
-      } = input;
+    newUser: async (_, { input }) => {
+      const { email, password } = input;
 
       // Revisar si el usuario ya existe
       const existsUser = await User.findOne({
-        email
+        email,
       });
       if (existsUser) {
         throw new Error("El usuario ya existe");
@@ -89,18 +109,13 @@ const resolvers = {
       }
     },
 
-    authenticateUser: async (_, {
-      input
-    }) => {
-      const {
-        email,
-        password
-      } = input;
+    authenticateUser: async (_, { input }) => {
+      const { email, password } = input;
 
       // El usuario existe
 
       const existsUser = await User.findOne({
-        email
+        email,
       });
       if (!existsUser) {
         throw new Error("El usuario no existe");
@@ -122,53 +137,106 @@ const resolvers = {
         token: createToken(existsUser, process.env.TOKEN_SECRET, "24h"),
       };
     },
-    newProduct: async (_, {
-      input
-    }) => {
+    newProduct: async (_, { input }) => {
       try {
-        const product = new Product(input)
+        const product = new Product(input);
 
         // Guardar en la base de Datos
-        const result = await product.save()
+        const result = await product.save();
 
-        return result
+        return result;
+      } catch (error) {
+        console.log(error);
+      }
+    },
 
+    updateProduct: async (_, { id, input }) => {
+      let product = await Product.findById(id);
+      if (!product) {
+        throw new Error("producto no encontado");
+      }
+
+      // guardar en la base de datos
+      product = await Product.findOneAndUpdate(
+        {
+          _id: id,
+        },
+        input,
+        {
+          new: true,
+        }
+      );
+
+      return product;
+    },
+
+    deleteProduct: async (_, { id }) => {
+      let product = await Product.findById(id);
+      if (!product) {
+        throw new Error("producto no encontado");
+      }
+      // eliminar
+      await Product.findByIdAndDelete({
+        _id: id,
+      });
+      return "Producto eliminado";
+    },
+    newClient: async (_, {input}, ctx) => {
+      const {email} = input
+
+      // verificar que el cliente existe 
+      const client = await Client.findOne({email})
+
+      if (client) {
+        throw new Error('El cliente ya existe')
+      }
+      
+      const newClient = new Client(input)
+      
+      // asingnar vendedor
+
+      newClient.salesman = ctx.user.id
+
+      // gurdarlo en la base de datos
+
+      try {
+        const resultClient = await newClient.save()
+  
+        return resultClient
+        
       } catch (error) {
         console.log(error)
       }
     },
+    updateClient: async (_, {id, input}, ctx)=>{
+      // verificar si el cliente existe
+      let clientUpdate = await Client.findById(id)
 
-    updateProduct: async (_, {
-      id,
-      input
-    }) => {
-      let product = await Product.findById(id)
-      if (!product) {
-        throw new Error('producto no encontado')
+      if (!clientUpdate) {
+        throw new Error('El cliente no existe')
       }
 
-      // guardar en la base de datos
-      product = await Product.findOneAndUpdate({
-        _id: id
-      }, input, {
-        new: true
-      })
+      // el vendedor es quien actualiza
+      if(clientUpdate.salesman.toString() !== ctx.user.id){
+        throw new Error("No tiene las credenciales para acceder")
+      }
 
-      return product
+      // guardar 
+      clientUpdate = await Client.findOneAndUpdate({_id: id}, input, {new: true})
+
+      return clientUpdate
     },
-
-    deleteProduct: async (_, {
-      id
-    }) => {
-      let product = await Product.findById(id)
-      if (!product) {
-        throw new Error('producto no encontado')
+    deleteClient: async (_, {id}, ctx) => {
+      let clientdelete = await Client.findById(id);
+      if (!clientdelete) {
+        throw new Error("Cliente no encontado");
       }
-      // eliminar
-      await Product.findByIdAndDelete({
-        _id: id
-      })
-      return "Producto eliminado"
+    if(clientdelete.salesman.toString() !== ctx.user.id){
+        throw new Error("No tiene las credenciales para acceder")
+    }
+      await Client.findOneAndRemove({_id: id})
+      return "El cliente se elimino"
+
     }
   },
 };
