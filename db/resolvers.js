@@ -82,6 +82,43 @@ const resolvers = {
         throw new Error("No tiene las credenciales para acceder")
       }
       return client
+    },
+    getOrders: async () => {
+      try {
+        const order = await Order.find({})
+        return order
+      } catch (error) {
+        console.log(error)
+      }
+    },
+    getOrdersSalesman: async (_, {}, ctx) => {
+      try {
+        const orderSalesname = await Order.find({salesman: ctx.user.id})
+        return orderSalesname
+      } catch (error) {
+        console.log(error)
+      }
+    },
+    getOrder: async (_, {id}, ctx) =>{
+      // verificar si exite
+      const order = await Order.findById(id)
+
+      if (!order) {
+        throw new Error('El pedido no existe')
+      }
+
+      // verificar quien lo crea
+
+      if(order.salesman.toString() !== ctx.user.id) {
+        throw new Error('No tiene credenciales de acceso')
+      }
+
+      // resultado
+      return order
+    },
+    getOrdersStates: async (_, {state}, ctx)=>{
+      const order = Order.find({salesman: ctx.user.id, state})
+      return order
     }
   },
   Mutation: {
@@ -241,6 +278,7 @@ const resolvers = {
     },
     newOrder: async (_, {input}, ctx) => {
       const {client} = input 
+
       // vefificar si exirte el cliente 
       let clientExists = await Client.findById(client)
       if(!clientExists){
@@ -276,8 +314,67 @@ const resolvers = {
     const  order = await newOrder.save()
     return order
 
+    },
+    updateOrder: async (_, {id, input}, ctx) => {
+      const {client} = input
+
+      // verificar si el pedido existe
+      const orderExists = await Order.findById(id)
+      if (!orderExists) {
+        throw new Error('No existe el pedido')
+      } 
+      // verificar que el cliente existe 
+      const clientExists = await Client.findById(client)
+      if (!clientExists) {
+        throw new Error('No existe el Cliente')
+      }
+
+
+      // verificar vendedor
+      if (clientExists.salesman.toString() !== ctx.user.id){
+        throw new Error("No tiene las credenciales para acceder")
+      }
+
+      // revisar existencias
+      if (input.order){
+
+        for await (const item of input.order){
+          const { id } = item
+    
+          const product = await Product.findById(id)
+    
+          if(item.quantity > product.existence){
+            throw new Error(`el articulo ${product.name} excede la cantidad disponible`)
+          } else {
+            product.existence = product.existence - item.quantity
+            await product.save()
+          }
+        }
+      }
+      // gurdar pedido
+      const updateOrder = await Order.findOneAndUpdate({_id:id}, input, {new: true})
+      return updateOrder
+
+    },
+    deleteOrder: async (_, {id}, ctx) => {
+      let order = await Order.findById(id)
+      if (!order) {
+        throw new Error("Pedido no encontado");
+      }
+
+     // verificar vendedor
+      if (order.salesman.toString() !== ctx.user.id){
+         throw new Error("No tiene las credenciales para acceder")
+       }
+  
+      await Order.findOneAndDelete({
+        _id: id
+      })
+
+      return 'Pedido Eliminado'
+
     }
-  },
+  }
 };
 
 module.exports = resolvers;
