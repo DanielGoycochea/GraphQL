@@ -11,7 +11,7 @@ const OrderSchema = mongoose.Schema({
   },
   client: {
     type: mongoose.Schema.Types.ObjectId,
-    ref:'Client',
+    ref: 'Client',
     require: true
   },
   salesman: {
@@ -21,9 +21,9 @@ const OrderSchema = mongoose.Schema({
   },
   state: {
     type: String,
-    default:"pendiente"
+    default: "pendiente"
   },
-  created:{
+  created: {
     type: Date,
     default: Date.now()
   }

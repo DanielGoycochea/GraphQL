@@ -6,31 +6,31 @@ const ClientSchema = mongoose.Schema({
     require: true,
     trim: true
   },
-  lastname:{
+  lastname: {
     type: String,
     require: true,
     trim: true
   },
-  company:{
+  company: {
     type: String,
     require: true,
     trim: true
   },
-  email:{
+  email: {
     type: String,
     require: true,
     trim: true,
-    unique:true
+    unique: true
   },
-  phone:{
+  phone: {
     type: String,
     trim: true,
   },
-  created:{
+  created: {
     type: Date,
     default: Date.now()
   },
-  salesman:{
+  salesman: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     require: true

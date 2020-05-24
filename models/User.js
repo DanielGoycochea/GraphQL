@@ -14,14 +14,14 @@ const UserSchema = mongoose.Schema({
   email: {
     type: String,
     require: true,
-    unique:true
+    unique: true
   },
   password: {
     type: String,
     require: true,
-    trim:true
+    trim: true
   },
-  created:{
+  created: {
     type: Date,
     default: Date.now()
   }

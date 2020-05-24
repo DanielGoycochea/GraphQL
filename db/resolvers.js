@@ -55,71 +55,129 @@ const resolvers = {
     },
     getClients: async () => {
       try {
-        const clients = await Client.find({})
-        return clients
-
+        const clients = await Client.find({});
+        return clients;
       } catch (error) {
-        console.log(error)
+        console.log(error);
       }
     },
     getClientsSalesman: async (_, {}, ctx) => {
       try {
-        const clientsSalesman = await Client.find({salesman: ctx.user.id.toString()})
-        return clientsSalesman
-
+        const clientsSalesman = await Client.find({
+          salesman: ctx.user.id.toString(),
+        });
+        return clientsSalesman;
       } catch (error) {
-        console.log(error)
+        console.log(error);
       }
     },
-    getClient: async (_, {id}, ctx) => {
+    getClient: async (_, { id }, ctx) => {
       // verificar que el usuario exista
-      const client = await Client.findById(id)
-      if (!client){
-        throw new Error('Cliente no existe')
+      const client = await Client.findById(id);
+      if (!client) {
+        throw new Error("Cliente no existe");
       }
       // quien lo creo puedo verlo
-      if (client.salesman.toString() !== ctx.user.id){
-        throw new Error("No tiene las credenciales para acceder")
+      if (client.salesman.toString() !== ctx.user.id) {
+        throw new Error("No tiene las credenciales para acceder");
       }
-      return client
+      return client;
     },
     getOrders: async () => {
       try {
-        const order = await Order.find({})
-        return order
+        const order = await Order.find({});
+        return order;
       } catch (error) {
-        console.log(error)
+        console.log(error);
       }
     },
     getOrdersSalesman: async (_, {}, ctx) => {
       try {
-        const orderSalesname = await Order.find({salesman: ctx.user.id})
-        return orderSalesname
+        const orderSalesname = await Order.find({ salesman: ctx.user.id });
+        return orderSalesname;
       } catch (error) {
-        console.log(error)
+        console.log(error);
       }
     },
-    getOrder: async (_, {id}, ctx) =>{
+    getOrder: async (_, { id }, ctx) => {
       // verificar si exite
-      const order = await Order.findById(id)
+      const order = await Order.findById(id);
 
       if (!order) {
-        throw new Error('El pedido no existe')
+        throw new Error("El pedido no existe");
       }
 
       // verificar quien lo crea
 
-      if(order.salesman.toString() !== ctx.user.id) {
-        throw new Error('No tiene credenciales de acceso')
+      if (order.salesman.toString() !== ctx.user.id) {
+        throw new Error("No tiene credenciales de acceso");
       }
 
       // resultado
-      return order
+      return order;
     },
-    getOrdersStates: async (_, {state}, ctx)=>{
-      const order = Order.find({salesman: ctx.user.id, state})
-      return order
-    }
+    getOrdersStates: async (_, { state }, ctx) => {
+      const order = Order.find({ salesman: ctx.user.id, state });
+      return order;
+    },
+    bestClients: async () => {
+      const clients = await Order.aggregate([
+        { $match: { state: "completado" } },
+        {
+          $group: {
+            _id: "$client",
+            total: { $sum: "$total" },
+          },
+        },
+        {
+          $lookup: {
+            from: "clients",
+            localField: "_id",
+            foreignField: "_id",
+            as: "client",
+          },
+        },
+        {
+          $sort: { total: -1 },
+        },
+        {
+          $limit: 3,
+        },
+      ]);
+      return clients;
+    },
+    bestSalesman: async () => {
+      const salesman = await Order.aggregate([
+        { $match: { state: "completado" } },
+        {
+          $group: {
+            _id: "$salesman",
+            total: { $sum: "$total" },
+          },
+        },
+        {
+          $lookup: {
+            from: "users",
+            localField: "_id",
+            foreignField: "_id",
+            as: "salesman",
+          },
+        },
+        {
+          $limit: 3,
+        },
+        {
+          $sort: { total: -1 },
+        },
+      ]);
+      return salesman;
+    },
+    searchProduct: async (_, { text }) => {
+      const products = await Product.find({ $text: { $search: text } }).limit(
+        10
+      );
+      return products;
+    },
   },
   Mutation: {
     newUser: async (_, { input }) => {
@@ -219,162 +277,163 @@ const resolvers = {
       });
       return "Producto eliminado";
     },
-    newClient: async (_, {input}, ctx) => {
-      const {email} = input
+    newClient: async (_, { input }, ctx) => {
+      const { email } = input;
 
-      // verificar que el cliente existe 
-      const client = await Client.findOne({email})
+      // verificar que el cliente existe
+      const client = await Client.findOne({ email });
 
       if (client) {
-        throw new Error('El cliente ya existe')
+        throw new Error("El cliente ya existe");
       }
-      
-      const newClient = new Client(input)
-      
+
+      const newClient = new Client(input);
+
       // asingnar vendedor
 
-      newClient.salesman = ctx.user.id
+      newClient.salesman = ctx.user.id;
 
       // gurdarlo en la base de datos
 
       try {
-        const resultClient = await newClient.save()
-  
-        return resultClient
-        
+        const resultClient = await newClient.save();
+
+        return resultClient;
       } catch (error) {
-        console.log(error)
+        console.log(error);
       }
     },
-    updateClient: async (_, {id, input}, ctx)=>{
+    updateClient: async (_, { id, input }, ctx) => {
       // verificar si el cliente existe
-      let clientUpdate = await Client.findById(id)
+      let clientUpdate = await Client.findById(id);
 
       if (!clientUpdate) {
-        throw new Error('El cliente no existe')
+        throw new Error("El cliente no existe");
       }
 
       // el vendedor es quien actualiza
-      if(clientUpdate.salesman.toString() !== ctx.user.id){
-        throw new Error("No tiene las credenciales para acceder")
+      if (clientUpdate.salesman.toString() !== ctx.user.id) {
+        throw new Error("No tiene las credenciales para acceder");
       }
 
-      // guardar 
-      clientUpdate = await Client.findOneAndUpdate({_id: id}, input, {new: true})
+      // guardar
+      clientUpdate = await Client.findOneAndUpdate({ _id: id }, input, {
+        new: true,
+      });
 
-      return clientUpdate
+      return clientUpdate;
     },
-    deleteClient: async (_, {id}, ctx) => {
+    deleteClient: async (_, { id }, ctx) => {
       let clientdelete = await Client.findById(id);
       if (!clientdelete) {
         throw new Error("Cliente no encontado");
       }
-    if(clientdelete.salesman.toString() !== ctx.user.id){
-        throw new Error("No tiene las credenciales para acceder")
-    }
-      await Client.findOneAndRemove({_id: id})
-      return "El cliente se elimino"
-
-    },
-    newOrder: async (_, {input}, ctx) => {
-      const {client} = input 
-
-      // vefificar si exirte el cliente 
-      let clientExists = await Client.findById(client)
-      if(!clientExists){
-        throw new Error ('El cliente ya existe')
+      if (clientdelete.salesman.toString() !== ctx.user.id) {
+        throw new Error("No tiene las credenciales para acceder");
       }
-      
+      await Client.findOneAndRemove({ _id: id });
+      return "El cliente se elimino";
+    },
+    newOrder: async (_, { input }, ctx) => {
+      const { client } = input;
+
+      // vefificar si exirte el cliente
+      let clientExists = await Client.findById(client);
+      if (!clientExists) {
+        throw new Error("El cliente ya existe");
+      }
+
       // verificar si el cliente es del vendedor
-      if(clientExists.salesman.toString() !== ctx.user.id){
-        throw new Error("No tiene las credenciales para acceder")
-    }
-
-    // revisar si hay disponiblidad
-    for await (const item of input.order){
-      const { id } = item
-
-      const product = await Product.findById(id)
-
-      if(item.quantity > product.existence){
-        throw new Error(`el articulo ${product.name} excede la cantidad disponible`)
-      } else {
-        product.existence = product.existence - item.quantity
-        await product.save()
+      if (clientExists.salesman.toString() !== ctx.user.id) {
+        throw new Error("No tiene las credenciales para acceder");
       }
-    }
-    // crear pedido
-    const newOrder = new Order(input)
+
+      // revisar si hay disponiblidad
+      for await (const item of input.order) {
+        const { id } = item;
+
+        const product = await Product.findById(id);
+
+        if (item.quantity > product.existence) {
+          throw new Error(
+            `el articulo ${product.name} excede la cantidad disponible`
+          );
+        } else {
+          product.existence = product.existence - item.quantity;
+          await product.save();
+        }
+      }
+      // crear pedido
+      const newOrder = new Order(input);
       // asignar vendedor
-     
-    newOrder.salesman = ctx.user.id
 
-    // guardar en la base de datos
+      newOrder.salesman = ctx.user.id;
 
-    const  order = await newOrder.save()
-    return order
+      // guardar en la base de datos
 
+      const order = await newOrder.save();
+      return order;
     },
-    updateOrder: async (_, {id, input}, ctx) => {
-      const {client} = input
+    updateOrder: async (_, { id, input }, ctx) => {
+      const { client } = input;
 
       // verificar si el pedido existe
-      const orderExists = await Order.findById(id)
+      const orderExists = await Order.findById(id);
       if (!orderExists) {
-        throw new Error('No existe el pedido')
-      } 
-      // verificar que el cliente existe 
-      const clientExists = await Client.findById(client)
+        throw new Error("No existe el pedido");
+      }
+      // verificar que el cliente existe
+      const clientExists = await Client.findById(client);
       if (!clientExists) {
-        throw new Error('No existe el Cliente')
+        throw new Error("No existe el Cliente");
       }
 
-
       // verificar vendedor
-      if (clientExists.salesman.toString() !== ctx.user.id){
-        throw new Error("No tiene las credenciales para acceder")
+      if (clientExists.salesman.toString() !== ctx.user.id) {
+        throw new Error("No tiene las credenciales para acceder");
       }
 
       // revisar existencias
-      if (input.order){
+      if (input.order) {
+        for await (const item of input.order) {
+          const { id } = item;
 
-        for await (const item of input.order){
-          const { id } = item
-    
-          const product = await Product.findById(id)
-    
-          if(item.quantity > product.existence){
-            throw new Error(`el articulo ${product.name} excede la cantidad disponible`)
+          const product = await Product.findById(id);
+
+          if (item.quantity > product.existence) {
+            throw new Error(
+              `el articulo ${product.name} excede la cantidad disponible`
+            );
           } else {
-            product.existence = product.existence - item.quantity
-            await product.save()
+            product.existence = product.existence - item.quantity;
+            await product.save();
           }
         }
       }
       // gurdar pedido
-      const updateOrder = await Order.findOneAndUpdate({_id:id}, input, {new: true})
-      return updateOrder
-
+      const updateOrder = await Order.findOneAndUpdate({ _id: id }, input, {
+        new: true,
+      });
+      return updateOrder;
     },
-    deleteOrder: async (_, {id}, ctx) => {
-      let order = await Order.findById(id)
+    deleteOrder: async (_, { id }, ctx) => {
+      let order = await Order.findById(id);
       if (!order) {
         throw new Error("Pedido no encontado");
       }
 
-     // verificar vendedor
-      if (order.salesman.toString() !== ctx.user.id){
-         throw new Error("No tiene las credenciales para acceder")
-       }
-  
+      // verificar vendedor
+      if (order.salesman.toString() !== ctx.user.id) {
+        throw new Error("No tiene las credenciales para acceder");
+      }
+
       await Order.findOneAndDelete({
-        _id: id
-      })
+        _id: id,
+      });
 
-      return 'Pedido Eliminado'
-
-    }
-  }
+      return "Pedido Eliminado";
+    },
+  },
 };
 
 module.exports = resolvers;

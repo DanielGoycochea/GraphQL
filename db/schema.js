@@ -1,10 +1,8 @@
-const {
-  gql
-} = require('apollo-server')
+const { gql } = require("apollo-server");
 
 // Schema
-const typeDefs = gql `
-  type User{
+const typeDefs = gql`
+  type User {
     id: ID
     name: String
     lastname: String
@@ -35,7 +33,7 @@ const typeDefs = gql `
 
   type Order {
     id: ID
-    order:[OrderGroup]
+    order: [OrderGroup]
     total: Float
     client: ID
     salesman: ID
@@ -46,6 +44,16 @@ const typeDefs = gql `
   type OrderGroup {
     id: ID
     quantity: Int
+  }
+
+  type TopClient {
+    total: Float
+    client: [Client]
+  }
+
+  type topSaleman {
+    total: Float
+    salesman: [User]
   }
 
   input UserInput {
@@ -74,7 +82,7 @@ const typeDefs = gql `
     phone: String
   }
 
-  input OrderProductInput{
+  input OrderProductInput {
     id: ID
     quantity: Int
   }
@@ -97,44 +105,49 @@ const typeDefs = gql `
     getUser(token: String!): User
 
     # Products
-    getProducts:[Product]
+    getProducts: [Product]
     getProduct(id: ID!): Product
 
     # Client
-    getClients:[Client]
+    getClients: [Client]
     getClientsSalesman: [Client]
     getClient(id: ID!): Client
 
     # Pedidos
-    getOrders:[Order]
+    getOrders: [Order]
     getOrdersSalesman: [Order]
     getOrder(id: ID!): Order
-    getOrdersStates(state:String!):[Order]
+    getOrdersStates(state: String!): [Order]
+
+    # Busquedas
+
+    bestClients: [TopClient]
+    bestSalesman: [topSaleman]
+    searchProduct(text: String!): [Product]
   }
 
   type Mutation {
     # User
     newUser(input: UserInput): User
-    authenticateUser(input: authenticateInput):Token
-    
+    authenticateUser(input: authenticateInput): Token
+
     # Product
-    newProduct(input:ProductInput): Product
+    newProduct(input: ProductInput): Product
     updateProduct(id: ID!, input: ProductInput): Product
     deleteProduct(id: ID!): String
 
     # Cliente
 
-    newClient(input:ClientInput): Client
+    newClient(input: ClientInput): Client
     updateClient(id: ID!, input: ClientInput): Client
     deleteClient(id: ID!): String
 
     # Pedidos
 
     newOrder(input: OrderInput): Order
-    updateOrder(id: ID! input: OrderInput): Order
+    updateOrder(id: ID!, input: OrderInput): Order
     deleteOrder(id: ID!): String
-
   }
 `;
 
-module.exports = typeDefs
+module.exports = typeDefs;
